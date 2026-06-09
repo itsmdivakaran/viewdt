@@ -47,6 +47,16 @@ viewdt(df).show()        # opens in the default browser
 viewdt(df).save("explorer.html")  # exports a standalone file
 ```
 
+Or explore one of the built-in sample datasets immediately:
+
+```python
+from viewdt import viewdt, load_iris, load_mtcars, load_titanic
+
+viewdt(load_iris())       # 150 rows — flower measurements
+viewdt(load_mtcars())     # 32 rows  — 1974 car specs
+viewdt(load_titanic())    # 891 rows — survival data with missing values
+```
+
 ---
 
 ## API reference
@@ -123,6 +133,52 @@ from viewdt import save_viewdt
 
 save_viewdt(df, "report.html")
 save_viewdt(df, "report_dark.html", options=viewdt_options(theme="dark"))
+```
+
+---
+
+## Built-in datasets
+
+Seven sample datasets are included — no internet connection required.
+
+| Loader | Rows | Columns | Description |
+|---|---|---|---|
+| `load_iris()` | 150 | 5 | Fisher's Iris flower measurements — setosa, versicolor, virginica |
+| `load_mtcars()` | 32 | 12 | Motor Trend Car Road Tests 1974 — mpg, hp, weight, transmission |
+| `load_penguins()` | 344 | 8 | Palmer Archipelago penguins — bill & flipper measurements (with NaNs) |
+| `load_tips()` | 244 | 7 | Restaurant tips — bill, tip, sex, smoker, day, time, party size |
+| `load_gapminder()` | 444 | 6 | Gapminder — country, continent, year, life expectancy, population, GDP |
+| `load_titanic()` | 891 | 9 | Titanic passengers — survival, class, sex, age (with NaNs), fare |
+| `load_stocks()` | 1260 | 4 | Daily closing prices — AAPL, GOOG, MSFT, AMZN, META (datetime column) |
+
+```python
+from viewdt import (
+    viewdt, viewdt_options,
+    load_iris, load_mtcars, load_penguins,
+    load_tips, load_gapminder, load_titanic, load_stocks,
+    list_datasets,
+)
+
+# See all available datasets
+viewdt(list_datasets())
+
+# Iris — type badges, spark histograms, column labels
+viewdt(load_iris())
+
+# mtcars — all-numeric, code export
+viewdt(load_mtcars(), options=viewdt_options(theme="dark"))
+
+# Penguins — completeness bars (missing values in age, sex)
+viewdt(load_penguins())
+
+# Gapminder — try the query builder: continent = "Asia", year >= 1990
+viewdt(load_gapminder())
+
+# Titanic — filter survived = 1, pclass = 1 to explore first-class survivors
+viewdt(load_titanic(), options=viewdt_options(hidden_columns=["name"]))
+
+# Stocks — datetime column, time-series data
+viewdt(load_stocks())
 ```
 
 ---
@@ -294,6 +350,28 @@ Research Scholar, Amity University Uttar Pradesh
 - GitHub: [github.com/itsmdivakaran](https://github.com/itsmdivakaran)
 - ORCID: [0000-0002-3488-0857](https://orcid.org/0000-0002-3488-0857)
 - Email: imaheshdivakaran@gmail.com
+
+---
+
+## Citation
+
+If you use **viewdt** in academic work, please cite the original R package:
+
+> Divakaran M (2026). *ViewR: Interactive Data Viewer, Filter, and Editor.*
+> R package version 0.2.0.
+> <https://itsmdivakaran.github.io/viewR/>
+
+BibTeX:
+
+```bibtex
+@Manual{ViewR,
+  title  = {{ViewR}: Interactive Data Viewer, Filter, and Editor},
+  author = {Mahesh Divakaran},
+  year   = {2026},
+  note   = {R package version 0.2.0},
+  url    = {https://itsmdivakaran.github.io/viewR/},
+}
+```
 
 ---
 
