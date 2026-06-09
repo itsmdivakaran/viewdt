@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 # ── Project metadata ────────────────────────────────────────────────────────
 [project]
 name            = "viewdt"
-version         = "1.0.0"
+version         = "1.1.0"
 description     = "Advanced interactive data table widget for pandas DataFrames — Python port of the R ViewR viewdt() function"
 readme          = "README.md"
 license         = "MIT"
