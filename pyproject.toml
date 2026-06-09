@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ── Project metadata ────────────────────────────────────────────────────────
+[project]
+name            = "viewdt"
+version         = "1.0.0"
+description     = "Advanced interactive data table widget for pandas DataFrames — Python port of the R ViewR viewdt() function"
+readme          = "README.md"
+license         = "MIT"
+license-files   = ["LICENSE"]
+requires-python = ">=3.9"
+
+authors = [
+    { name = "Mahesh Divakaran", email = "imaheshdivakaran@gmail.com" },
+]
+maintainers = [
+    { name = "Mahesh Divakaran", email = "imaheshdivakaran@gmail.com" },
+]
+
+keywords = [
+    "dataframe", "data-explorer", "interactive", "table",
+    "widget", "html", "visualization", "pandas", "jupyter",
+    "data-analysis", "data-profiling",
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Framework :: Jupyter",
+]
+
+dependencies = [
+    "pandas>=1.3",
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+notebook = ["ipython>=7.0"]
+dev = [
+    "build",
+    "twine",
+    "pytest>=7",
+    "ipython>=7.0",
+]
+
+# ── Project URLs ────────────────────────────────────────────────────────────
+[project.urls]
+Homepage      = "https://github.com/itsmdivakaran/viewdt-python"
+Documentation = "https://github.com/itsmdivakaran/viewdt-python#readme"
+"Bug Tracker" = "https://github.com/itsmdivakaran/viewdt-python/issues"
+"Source Code" = "https://github.com/itsmdivakaran/viewdt-python"
+"R Original"  = "https://itsmdivakaran.github.io/viewR/"
+"Author GitHub" = "https://github.com/itsmdivakaran"
+"ORCID"       = "https://orcid.org/0000-0002-3488-0857"
+
+# ── Package discovery ───────────────────────────────────────────────────────
+[tool.setuptools.packages.find]
+where   = ["."]
+include = ["viewdt*"]
+
+[tool.setuptools.package-data]
+viewdt = ["py.typed"]
