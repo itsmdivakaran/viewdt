@@ -60,10 +60,10 @@ dev = [
 
 # ── Project URLs ────────────────────────────────────────────────────────────
 [project.urls]
-Homepage      = "https://github.com/itsmdivakaran/viewdt-python"
-Documentation = "https://github.com/itsmdivakaran/viewdt-python#readme"
-"Bug Tracker" = "https://github.com/itsmdivakaran/viewdt-python/issues"
-"Source Code" = "https://github.com/itsmdivakaran/viewdt-python"
+Homepage      = "https://github.com/itsmdivakaran/viewdt"
+Documentation = "https://github.com/itsmdivakaran/viewdt#readme"
+"Bug Tracker" = "https://github.com/itsmdivakaran/viewdt/issues"
+"Source Code" = "https://github.com/itsmdivakaran/viewdt"
 "R Original"  = "https://itsmdivakaran.github.io/viewR/"
 "Author GitHub" = "https://github.com/itsmdivakaran"
 "ORCID"       = "https://orcid.org/0000-0002-3488-0857"
