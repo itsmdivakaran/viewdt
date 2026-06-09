@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>viewdt — Interactive DataFrame Explorer for Python</title>
+  <meta name="description" content="viewdt transforms any pandas DataFrame into a high-performance, self-contained HTML explorer. Python port of the R ViewR viewdt() function.">
+  <meta name="author" content="Mahesh Divakaran">
+  <meta property="og:title" content="viewdt — Interactive DataFrame Explorer for Python">
+  <meta property="og:description" content="Transform any pandas DataFrame into a self-contained HTML explorer. Zero browser-side dependencies.">
+  <meta property="og:url" content="https://itsmdivakaran.github.io/viewdt/">
+  <link rel="canonical" href="https://itsmdivakaran.github.io/viewdt/">
+  <style>
+    /* ── Theme variables ──────────────────────────────────── */
+    :root {
+      --bg:          #ffffff;
+      --bg-alt:      #f8fafc;
+      --surface:     #f1f5f9;
+      --border:      #e2e8f0;
+      --text:        #1e293b;
+      --muted:       #64748b;
+      --primary:     #4f46e5;
+      --primary-h:   #4338ca;
+      --accent:      #059669;
+      --code-bg:     #1e293b;
+      --code-fg:     #e2e8f0;
+      --badge-bg:    #ede9fe;
+      --badge-fg:    #4f46e5;
+      --chip-bg:     #dcfce7;
+      --chip-fg:     #15803d;
+      --nav-bg:      rgba(255,255,255,0.92);
+      --sh:          0 1px 3px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
+      --sh-lg:       0 10px 25px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+    }
+    [data-theme="dark"] {
+      --bg:          #0f172a;
+      --bg-alt:      #1e293b;
+      --surface:     #1e293b;
+      --border:      #334155;
+      --text:        #e2e8f0;
+      --muted:       #94a3b8;
+      --primary:     #818cf8;
+      --primary-h:   #a5b4fc;
+      --accent:      #34d399;
+      --code-bg:     #0d1527;
+      --code-fg:     #e2e8f0;
+      --badge-bg:    #312e81;
+      --badge-fg:    #a5b4fc;
+      --chip-bg:     #064e3b;
+      --chip-fg:     #6ee7b7;
+      --nav-bg:      rgba(15,23,42,0.92);
+      --sh:          0 1px 3px rgba(0,0,0,.4);
+      --sh-lg:       0 10px 25px rgba(0,0,0,.4);
+    }
+
+    /* ── Reset ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      transition: background .25s, color .25s;
+    }
+    a { color: var(--primary); }
+
+    /* ── Navigation ───────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 200;
+      background: var(--nav-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      height: 58px;
+      display: flex; align-items: center;
+      padding: 0 2rem;
+      gap: 2rem;
+    }
+    .nav-brand {
+      font-family: 'Courier New', monospace;
+      font-size: 1.25rem; font-weight: 700;
+      color: var(--primary); text-decoration: none;
+      flex-shrink: 0;
+    }
+    .nav-links {
+      display: flex; gap: 1.4rem; align-items: center; flex: 1;
+    }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: .9rem;
+      transition: color .15s;
+    }
+    .nav-links a:hover { color: var(--primary); }
+    .nav-right { margin-left: auto; display: flex; gap: .75rem; align-items: center; }
+    .icon-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: .82rem; font-weight: 600; color: var(--text);
+      text-decoration: none; cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .icon-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── Layout helpers ───────────────────────────────────── */
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
+    section { padding: 5rem 1.5rem; }
+    section:nth-child(even) { background: var(--bg-alt); }
+    .section-head { margin-bottom: 2.5rem; }
+    .section-head h2 { font-size: 1.9rem; font-weight: 800; margin-bottom: .4rem; }
+    .section-head p { color: var(--muted); font-size: 1.05rem; }
+
+    /* ── Hero ─────────────────────────────────────────────── */
+    .hero {
+      background: var(--bg);
+      padding: 6rem 1.5rem 5rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      background: var(--badge-bg); color: var(--badge-fg);
+      padding: 4px 16px; border-radius: 20px;
+      font-size: .78rem; font-weight: 700; letter-spacing: .04em;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 900; line-height: 1.1;
+      margin-bottom: 1.2rem;
+    }
+    .hero h1 .pkg { font-family: 'Courier New', monospace; color: var(--primary); }
+    .hero .sub {
+      font-size: 1.15rem; color: var(--muted);
+      max-width: 580px; margin: 0 auto 2.5rem;
+    }
+    .hero-actions {
+      display: flex; gap: .9rem; justify-content: center;
+      flex-wrap: wrap; margin-bottom: 2.5rem;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 11px 22px; border-radius: 10px;
+      font-size: .92rem; font-weight: 600; text-decoration: none;
+      border: none; cursor: pointer; transition: all .18s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-h); transform: translateY(-1px); box-shadow: var(--sh-lg); }
+    .btn-ghost {
+      background: transparent; color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+    .install-strip {
+      display: inline-flex; align-items: center; gap: 14px;
+      background: var(--code-bg); color: var(--code-fg);
+      padding: 14px 22px; border-radius: 12px;
+      font-family: 'Courier New', monospace; font-size: 1rem;
+      box-shadow: var(--sh-lg); margin-bottom: 2.5rem;
+    }
+    .install-strip .prompt { color: #64748b; }
+
+    .badges { display: flex; justify-content: center; gap: .5rem; flex-wrap: wrap; }
+    .badges img { height: 20px; }
+
+    /* ── Widget mockup ────────────────────────────────────── */
+    .mockup-wrap {
+      max-width: 780px; margin: 0 auto 0;
+      background: var(--code-bg);
+      border-radius: 14px;
+      box-shadow: var(--sh-lg);
+      overflow: hidden;
+      text-align: left;
+    }
+    .mockup-bar {
+      background: #1e293b; border-bottom: 1px solid #334155;
+      padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .mock-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .mock-title {
+      margin-left: 8px; font-size: .78rem; color: #64748b;
+      font-family: 'Courier New', monospace;
+    }
+    .mock-toolbar {
+      background: #1a2744; border-bottom: 1px solid #334155;
+      padding: 7px 14px; display: flex; gap: 8px; align-items: center;
+    }
+    .mock-search {
+      background: #253349; border: 1px solid #334155; border-radius: 6px;
+      padding: 4px 10px; font-size: .75rem; color: #64748b; flex: 1; max-width: 200px;
+    }
+    .mock-chip {
+      background: #253349; border: 1px solid #334155; border-radius: 6px;
+      padding: 4px 10px; font-size: .73rem; color: #94a3b8;
+    }
+    .mock-table { width: 100%; border-collapse: collapse; font-size: .76rem; }
+    .mock-table th {
+      background: #1a2744; padding: 10px 14px;
+      border-bottom: 1px solid #334155; color: #cbd5e1;
+      font-weight: 600; white-space: nowrap;
+    }
+    .mock-table td {
+      padding: 8px 14px; border-bottom: 1px solid #253349; color: #94a3b8;
+    }
+    .mock-table tr:last-child td { border-bottom: none; }
+    .mock-badge {
+      display: inline-block; font-size: .65rem; padding: 1px 5px;
+      border-radius: 3px; font-weight: 700; margin-left: 4px;
+    }
+    .badge-num { background:#1d3a5e; color:#60a5fa; }
+    .badge-cat { background:#1a3a2a; color:#4ade80; }
+    .mock-spark {
+      display: inline-flex; align-items: flex-end; gap: 1px;
+      height: 14px; margin-left: 6px; vertical-align: middle;
+    }
+    .mock-spark span {
+      display: inline-block; width: 4px; background: #4f46e5; border-radius: 1px;
+      opacity: .7;
+    }
+    .mock-comp {
+      height: 3px; border-radius: 2px; margin-top: 4px;
+    }
+    .comp-green { background: #22c55e; }
+    .comp-amber { background: #f59e0b; }
+    .mock-cat-bar {
+      display: flex; flex-direction: column; gap: 2px; margin-left: 6px;
+    }
+    .mock-cat-bar span {
+      display: inline-block; height: 4px; border-radius: 2px; background: #6366f1;
+    }
+
+    /* ── Feature grid ─────────────────────────────────────── */
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 1.25rem;
+    }
+    .feat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem;
+      box-shadow: var(--sh);
+      transition: box-shadow .2s, transform .2s;
+    }
+    [data-theme="dark"] .feat-card { background: #1e293b; }
+    .feat-card:hover { box-shadow: var(--sh-lg); transform: translateY(-2px); }
+    .feat-icon { font-size: 1.7rem; margin-bottom: .7rem; }
+    .feat-title { font-size: 1rem; font-weight: 700; margin-bottom: .3rem; }
+    .feat-desc { font-size: .87rem; color: var(--muted); }
+
+    /* ── Code blocks ──────────────────────────────────────── */
+    .code-wrap { position: relative; margin: 1.5rem 0; }
+    pre {
+      background: var(--code-bg); color: var(--code-fg);
+      padding: 1.4rem 1.5rem; border-radius: 12px;
+      overflow-x: auto; font-family: 'Courier New', Courier, monospace;
+      font-size: .87rem; line-height: 1.75;
+      box-shadow: var(--sh-lg);
+    }
+    .cp {
+      position: absolute; top: 11px; right: 11px;
+      background: #334155; border: 1px solid #475569;
+      border-radius: 6px; color: #94a3b8;
+      padding: 5px 12px; font-size: .73rem; cursor: pointer;
+      transition: all .15s;
+    }
+    .cp:hover { border-color: var(--primary); color: var(--primary); }
+    .kw { color: #c084fc; }
+    .fn { color: #60a5fa; }
+    .st { color: #86efac; }
+    .cm { color: #475569; font-style: italic; }
+    .nu { color: #fb923c; }
+
+    /* ── Tabs ─────────────────────────────────────────────── */
+    .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+    .tab-btn {
+      padding: 10px 20px; border: none; background: transparent;
+      cursor: pointer; color: var(--muted); font-size: .88rem; font-weight: 600;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Tables ───────────────────────────────────────────── */
+    .tbl-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th {
+      background: var(--surface); padding: 12px 16px;
+      text-align: left; font-weight: 700;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface); }
+    td code, th code {
+      background: var(--code-bg); color: var(--accent);
+      padding: 2px 7px; border-radius: 4px;
+      font-family: 'Courier New', monospace; font-size: .84rem;
+    }
+
+    /* ── Chips ────────────────────────────────────────────── */
+    .chip {
+      display: inline-block;
+      background: var(--chip-bg); color: var(--chip-fg);
+      padding: 2px 9px; border-radius: 10px;
+      font-size: .74rem; font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* ── Citation ─────────────────────────────────────────── */
+    .cite-quote {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 10px 10px 0;
+      padding: 1.25rem 1.5rem;
+      font-size: .97rem; margin-bottom: 1.5rem;
+    }
+
+    /* ── Author card ──────────────────────────────────────── */
+    .author-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem;
+      max-width: 480px; box-shadow: var(--sh);
+    }
+    [data-theme="dark"] .author-card { background: var(--surface); }
+    .author-name { font-size: 1.3rem; font-weight: 800; margin-bottom: .2rem; }
+    .author-role { color: var(--muted); margin-bottom: 1.2rem; font-size: .95rem; }
+    .author-links { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .author-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      color: var(--primary); text-decoration: none;
+      font-size: .88rem; font-weight: 600;
+    }
+    .author-link:hover { text-decoration: underline; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer {
+      background: var(--bg-alt); border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem; text-align: center;
+      color: var(--muted); font-size: .86rem;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    footer p + p { margin-top: .5rem; }
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hero { padding: 4rem 1.25rem 3rem; }
+      section { padding: 3.5rem 1.25rem; }
+      .install-strip { font-size: .88rem; padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     NAVIGATION
+═════════════════════════════════════════════════════════════ -->
+<nav>
+  <a href="#" class="nav-brand">viewdt</a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#datasets">Datasets</a>
+    <a href="#api">API</a>
+    <a href="#citation">Citation</a>
+  </div>
+  <div class="nav-right">
+    <a href="https://github.com/itsmdivakaran/viewdt" class="icon-btn">&#9733; GitHub</a>
+    <a href="https://pypi.org/project/viewdt/" class="icon-btn">&#128230; PyPI</a>
+    <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">&#9790; Dark</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO
+═════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <div class="hero-eyebrow">Python Port of R ViewR &nbsp;&#183;&nbsp; v1.1.0</div>
+  <h1><span class="pkg">viewdt</span><br>Interactive DataFrame Explorer</h1>
+  <p class="sub">Transform any pandas DataFrame into a high-performance, fully self-contained HTML explorer. Zero browser-side dependencies. Profiles columns in Python before render.</p>
+
+  <div class="hero-actions">
+    <a href="https://github.com/itsmdivakaran/viewdt" class="btn btn-primary">&#9733; View on GitHub</a>
+    <a href="https://pypi.org/project/viewdt/" class="btn btn-ghost">&#128230; PyPI</a>
+    <a href="https://itsmdivakaran.github.io/viewR/" class="btn btn-ghost">R ViewR &#8599;</a>
+  </div>
+
+  <div class="install-strip" id="install-strip">
+    <span class="prompt">$</span>
+    <span>pip install viewdt</span>
+    <button class="cp" onclick="copyInstall()">copy</button>
+  </div>
+
+  <div class="badges">
+    <img src="https://img.shields.io/pypi/v/viewdt?color=4f46e5&style=flat-square&label=PyPI" alt="PyPI version">
+    <img src="https://img.shields.io/pypi/pyversions/viewdt?style=flat-square" alt="Python versions">
+    <img src="https://img.shields.io/pypi/dm/viewdt?style=flat-square&color=059669&label=downloads%2Fmo" alt="Monthly downloads">
+    <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License">
+    <img src="https://img.shields.io/badge/ORCID-0000--0002--3488--0857-brightgreen?style=flat-square&logo=orcid" alt="ORCID">
+  </div>
+
+  <!-- Widget preview mockup -->
+  <div style="max-width:820px;margin:3rem auto 0;">
+    <div class="mockup-wrap">
+      <div class="mockup-bar">
+        <div class="mock-dot" style="background:#ef4444"></div>
+        <div class="mock-dot" style="background:#f59e0b"></div>
+        <div class="mock-dot" style="background:#22c55e"></div>
+        <span class="mock-title">iris — 150 rows &times; 5 columns</span>
+      </div>
+      <div class="mock-toolbar">
+        <div class="mock-search">&#128269; Search all columns…</div>
+        <div class="mock-chip">&#9874; Filters</div>
+        <div class="mock-chip">&#128065; Columns</div>
+        <div class="mock-chip">&lt;/&gt; Code</div>
+        <div class="mock-chip" style="margin-left:auto">&#9790;</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="mock-table">
+          <thead>
+            <tr>
+              <th>
+                sepal_length <span class="mock-badge badge-num">#</span>
+                <span class="mock-spark">
+                  <span style="height:4px"></span><span style="height:7px"></span>
+                  <span style="height:11px"></span><span style="height:14px"></span>
+                  <span style="height:10px"></span><span style="height:8px"></span>
+                  <span style="height:5px"></span>
+                </span>
+                <div class="mock-comp comp-green" style="width:100%"></div>
+              </th>
+              <th>
+                sepal_width <span class="mock-badge badge-num">#</span>
+                <span class="mock-spark">
+                  <span style="height:5px"></span><span style="height:9px"></span>
+                  <span style="height:14px"></span><span style="height:9px"></span>
+                  <span style="height:5px"></span><span style="height:3px"></span>
+                </span>
+                <div class="mock-comp comp-green" style="width:100%"></div>
+              </th>
+              <th>
+                petal_length <span class="mock-badge badge-num">#</span>
+                <span class="mock-spark">
+                  <span style="height:14px"></span><span style="height:3px"></span>
+                  <span style="height:2px"></span><span style="height:8px"></span>
+                  <span style="height:12px"></span><span style="height:9px"></span>
+                </span>
+                <div class="mock-comp comp-green" style="width:100%"></div>
+              </th>
+              <th>
+                species <span class="mock-badge badge-cat">A</span>
+                <span class="mock-cat-bar" style="display:inline-flex;flex-direction:column;gap:2px;vertical-align:middle;margin-left:6px">
+                  <span style="width:40px"></span>
+                  <span style="width:40px"></span>
+                  <span style="width:38px"></span>
+                </span>
+                <div class="mock-comp comp-green" style="width:100%"></div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>5.1</td><td>3.5</td><td>1.4</td><td>setosa</td></tr>
+            <tr><td>4.9</td><td>3.0</td><td>1.4</td><td>setosa</td></tr>
+            <tr><td>7.0</td><td>3.2</td><td>4.7</td><td>versicolor</td></tr>
+            <tr><td>6.4</td><td>3.2</td><td>4.5</td><td>versicolor</td></tr>
+            <tr><td>6.3</td><td>3.3</td><td>6.0</td><td>virginica</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="background:#1a2744;border-top:1px solid #334155;padding:8px 14px;font-size:.72rem;color:#475569;font-family:'Courier New',monospace">
+        Showing 5 of 150 rows &nbsp;&#183;&nbsp; 5 columns &nbsp;&#183;&nbsp; 0 filters active
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     FEATURES
+═════════════════════════════════════════════════════════════ -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Everything you need to explore data</h2>
+      <p>All features are profiled in Python before the HTML renders — no backend, no CDN, no internet.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">&#128202;</div>
+        <div class="feat-title">Spark Histograms</div>
+        <div class="feat-desc">Inline SVG mini-charts in every column header — numeric, categorical, logical, and datetime columns each get a tailored chart.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#9889;</div>
+        <div class="feat-title">Virtualised Grid</div>
+        <div class="feat-desc">Only visible rows are rendered as <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">position:absolute</code> nodes. Handles hundreds of thousands of rows.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128270;</div>
+        <div class="feat-title">Visual Query Builder</div>
+        <div class="feat-desc">Multi-condition AND/OR filtering with type-aware operators. Numeric, text, logical, and datetime operators each exposed separately.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128203;</div>
+        <div class="feat-title">Code Export</div>
+        <div class="feat-desc">Generates reproducible <strong>pandas</strong>, <strong>Python</strong>, and <strong>SQL</strong> matching the current filter state and visible columns.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#127763;</div>
+        <div class="feat-title">Dark / Light / Auto Theme</div>
+        <div class="feat-desc">Follows the OS preference by default. Toggle at runtime or force via <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">theme="dark"</code>.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#127991;</div>
+        <div class="feat-title">Column Labels</div>
+        <div class="feat-desc">Reads <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">series.attrs["label"]</code> — compatible with haven-imported datasets and ADaM clinical data.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128200;</div>
+        <div class="feat-title">Completeness Bars</div>
+        <div class="feat-desc">Per-column fill-rate indicator below each header — green &#8805;90%, amber &#8805;70%, red &lt;70%.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128269;</div>
+        <div class="feat-title">Data Insights Drawer</div>
+        <div class="feat-desc">Click any column header for a full histogram, descriptive statistics panel, and category frequency chart.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128065;</div>
+        <div class="feat-title">Column Picker</div>
+        <div class="feat-desc">Toggle column visibility at runtime without reloading the widget or re-running the cell.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#127760;</div>
+        <div class="feat-title">Standalone HTML</div>
+        <div class="feat-desc">One self-contained file — no CDN, no network. Share as an email attachment or commit to git.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128211;</div>
+        <div class="feat-title">Jupyter Native</div>
+        <div class="feat-desc">Renders inline in JupyterLab, Jupyter Notebook, VS Code notebooks, and Google Colab via <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">_repr_html_()</code>.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">&#128290;</div>
+        <div class="feat-title">Type Badges</div>
+        <div class="feat-desc"><code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">#</code> numeric &nbsp;&#183;&nbsp; <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">A</code> text &nbsp;&#183;&nbsp; <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">T/F</code> logical &nbsp;&#183;&nbsp; <code style="font-size:.8rem;background:var(--code-bg);color:var(--accent);padding:1px 5px;border-radius:3px">&#9201;</code> datetime — visible at a glance in every header.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     QUICK START
+═════════════════════════════════════════════════════════════ -->
+<section id="quickstart">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Quick Start</h2>
+      <p>One import, one function call.</p>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" onclick="tab(event,'t-basic')">Basic</button>
+      <button class="tab-btn" onclick="tab(event,'t-options')">With Options</button>
+      <button class="tab-btn" onclick="tab(event,'t-datasets')">Built-in Data</button>
+      <button class="tab-btn" onclick="tab(event,'t-save')">Save &amp; Export</button>
+      <button class="tab-btn" onclick="tab(event,'t-clinical')">Clinical Labels</button>
+    </div>
+
+    <div id="t-basic" class="tab-pane active">
+      <div class="code-wrap">
+        <pre><span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">from</span> viewdt <span class="kw">import</span> viewdt
+
+df = pd.read_csv(<span class="st">"data.csv"</span>)
+
+viewdt(df)                <span class="cm"># renders inline in Jupyter / Colab</span>
+viewdt(df).show()         <span class="cm"># opens in default browser</span>
+viewdt(df).save(<span class="st">"explorer.html"</span>)  <span class="cm"># standalone file</span></pre>
+        <button class="cp" onclick="cp(this,`import pandas as pd\nfrom viewdt import viewdt\n\ndf = pd.read_csv('data.csv')\n\nviewdt(df)\nviewdt(df).show()\nviewdt(df).save('explorer.html')`)">copy</button>
+      </div>
+    </div>
+
+    <div id="t-options" class="tab-pane">
+      <div class="code-wrap">
+        <pre><span class="kw">from</span> viewdt <span class="kw">import</span> viewdt, viewdt_options
+
+viewdt(
+    df,
+    options=viewdt_options(
+        theme=<span class="st">"dark"</span>,
+        hidden_columns=[<span class="st">"internal_id"</span>, <span class="st">"created_at"</span>],
+        hist_bins=<span class="nu">30</span>,
+        top_n=<span class="nu">15</span>,
+        missing_bars=<span class="kw">True</span>,
+    ),
+)</pre>
+        <button class="cp" onclick="cp(this,`from viewdt import viewdt, viewdt_options\n\nviewdt(\n    df,\n    options=viewdt_options(\n        theme='dark',\n        hidden_columns=['internal_id', 'created_at'],\n        hist_bins=30,\n        top_n=15,\n    ),\n)`)">copy</button>
+      </div>
+    </div>
+
+    <div id="t-datasets" class="tab-pane">
+      <div class="code-wrap">
+        <pre><span class="kw">from</span> viewdt <span class="kw">import</span> (
+    viewdt,
+    load_iris, load_mtcars, load_penguins,
+    load_tips, load_gapminder, load_titanic, load_stocks,
+    list_datasets,
+)
+
+viewdt(list_datasets())   <span class="cm"># summary table of all datasets</span>
+viewdt(load_iris())       <span class="cm"># 150 rows — flower measurements</span>
+viewdt(load_mtcars())     <span class="cm"># 32 rows  — 1974 car specs</span>
+viewdt(load_titanic())    <span class="cm"># 891 rows — survival + missing values</span>
+viewdt(load_stocks())     <span class="cm"># 1260 rows — datetime price series</span></pre>
+        <button class="cp" onclick="cp(this,`from viewdt import (\n    viewdt,\n    load_iris, load_mtcars, load_penguins,\n    load_tips, load_gapminder, load_titanic, load_stocks,\n    list_datasets,\n)\n\nviewdt(list_datasets())\nviewdt(load_iris())\nviewdt(load_mtcars())\nviewdt(load_titanic())\nviewdt(load_stocks())`)">copy</button>
+      </div>
+    </div>
+
+    <div id="t-save" class="tab-pane">
+      <div class="code-wrap">
+        <pre><span class="kw">from</span> viewdt <span class="kw">import</span> save_viewdt, viewdt_options
+
+<span class="cm"># One-line export to a standalone HTML file</span>
+save_viewdt(
+    df,
+    <span class="st">"team_report.html"</span>,
+    options=viewdt_options(theme=<span class="st">"light"</span>, code_export=<span class="kw">False</span>),
+    dataset_name=<span class="st">"sales_q1"</span>,
+)
+
+<span class="cm"># Or via the widget</span>
+w = viewdt(df)
+w.save(<span class="st">"explorer.html"</span>)   <span class="cm"># export file</span>
+w.show()                   <span class="cm"># open in browser</span></pre>
+        <button class="cp" onclick="cp(this,`from viewdt import save_viewdt, viewdt_options\n\nsave_viewdt(\n    df,\n    'team_report.html',\n    options=viewdt_options(theme='light', code_export=False),\n    dataset_name='sales_q1',\n)`)">copy</button>
+      </div>
+    </div>
+
+    <div id="t-clinical" class="tab-pane">
+      <div class="code-wrap">
+        <pre><span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">from</span> viewdt <span class="kw">import</span> viewdt
+
+<span class="cm"># Column labels (compatible with haven / ADaM datasets)</span>
+df[<span class="st">"AVAL"</span>].attrs[<span class="st">"label"</span>] = <span class="st">"Analysis Value"</span>
+df[<span class="st">"PARAMCD"</span>].attrs[<span class="st">"label"</span>] = <span class="st">"Parameter Code"</span>
+df[<span class="st">"VISITNUM"</span>].attrs[<span class="st">"label"</span>] = <span class="st">"Visit Number"</span>
+
+viewdt(df)   <span class="cm"># labels appear below column names in headers</span></pre>
+        <button class="cp" onclick="cp(this,`import pandas as pd\nfrom viewdt import viewdt\n\ndf['AVAL'].attrs['label'] = 'Analysis Value'\ndf['PARAMCD'].attrs['label'] = 'Parameter Code'\ndf['VISITNUM'].attrs['label'] = 'Visit Number'\n\nviewdt(df)`)">copy</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DATASETS
+═════════════════════════════════════════════════════════════ -->
+<section id="datasets">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Built-in Datasets</h2>
+      <p>Seven sample datasets included — no internet connection required.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Loader</th><th>Rows</th><th>Cols</th>
+            <th>Description</th><th>Highlights</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>load_iris()</code></td>
+            <td>150</td><td>5</td>
+            <td>Fisher's Iris flower measurements — setosa, versicolor, virginica</td>
+            <td><span class="chip">numeric</span> <span class="chip">categorical</span></td>
+          </tr>
+          <tr>
+            <td><code>load_mtcars()</code></td>
+            <td>32</td><td>12</td>
+            <td>Motor Trend Car Road Tests 1974 — mpg, hp, weight, transmission</td>
+            <td><span class="chip">all-numeric</span></td>
+          </tr>
+          <tr>
+            <td><code>load_penguins()</code></td>
+            <td>344</td><td>8</td>
+            <td>Palmer Archipelago penguins — bill &amp; flipper measurements</td>
+            <td><span class="chip">missing values</span> <span class="chip">mixed types</span></td>
+          </tr>
+          <tr>
+            <td><code>load_tips()</code></td>
+            <td>244</td><td>7</td>
+            <td>Restaurant tips — bill, tip, sex, smoker, day, time, party size</td>
+            <td><span class="chip">numeric</span> <span class="chip">categorical</span></td>
+          </tr>
+          <tr>
+            <td><code>load_gapminder()</code></td>
+            <td>444</td><td>6</td>
+            <td>Gapminder — country, year, life expectancy, population, GDP</td>
+            <td><span class="chip">time series</span> <span class="chip">global</span></td>
+          </tr>
+          <tr>
+            <td><code>load_titanic()</code></td>
+            <td>891</td><td>9</td>
+            <td>Titanic passengers — survival, class, sex, age, fare</td>
+            <td><span class="chip">logical</span> <span class="chip">missing values</span></td>
+          </tr>
+          <tr>
+            <td><code>load_stocks()</code></td>
+            <td>1,260</td><td>4</td>
+            <td>Daily closing prices — AAPL, GOOG, MSFT, AMZN, META (5 × 252 days)</td>
+            <td><span class="chip">datetime</span> <span class="chip">time series</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     API REFERENCE
+═════════════════════════════════════════════════════════════ -->
+<section id="api">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>API Reference</h2>
+      <p>All <code style="background:var(--code-bg);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:.9rem">viewdt_options()</code> parameters are keyword-only with sensible defaults.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>theme</code></td><td><code>"auto"&#160;|&#160;"light"&#160;|&#160;"dark"</code></td><td><code>"auto"</code></td><td>UI colour scheme; auto follows OS preference</td></tr>
+          <tr><td><code>show_labels</code></td><td><code>bool</code></td><td><code>True</code></td><td>Show <code>series.attrs["label"]</code> in column headers</td></tr>
+          <tr><td><code>histograms</code></td><td><code>bool</code></td><td><code>True</code></td><td>Render spark histograms / category bars</td></tr>
+          <tr><td><code>missing_bars</code></td><td><code>bool</code></td><td><code>True</code></td><td>Show data-completeness bar in headers</td></tr>
+          <tr><td><code>type_badges</code></td><td><code>bool</code></td><td><code>True</code></td><td>Show data-type badges in column headers</td></tr>
+          <tr><td><code>insights</code></td><td><code>bool</code></td><td><code>True</code></td><td>Enable the Data Insights drawer (click any header)</td></tr>
+          <tr><td><code>query_builder</code></td><td><code>bool</code></td><td><code>True</code></td><td>Enable the visual query builder</td></tr>
+          <tr><td><code>column_picker</code></td><td><code>bool</code></td><td><code>True</code></td><td>Enable the column-visibility picker</td></tr>
+          <tr><td><code>code_export</code></td><td><code>bool</code></td><td><code>True</code></td><td>Enable reproducible code generator (pandas / Python / SQL)</td></tr>
+          <tr><td><code>global_search</code></td><td><code>bool</code></td><td><code>True</code></td><td>Enable the global search box</td></tr>
+          <tr><td><code>na_string</code></td><td><code>str</code></td><td><code>"NA"</code></td><td>Text displayed for missing values</td></tr>
+          <tr><td><code>hidden_columns</code></td><td><code>list[str]&#160;|&#160;None</code></td><td><code>None</code></td><td>Columns hidden on initial render</td></tr>
+          <tr><td><code>page_size</code></td><td><code>int</code></td><td><code>200</code></td><td>Rows kept in the virtualised DOM buffer</td></tr>
+          <tr><td><code>hist_bins</code></td><td><code>int</code></td><td><code>20</code></td><td>Bin count for numeric / datetime histograms</td></tr>
+          <tr><td><code>top_n</code></td><td><code>int</code></td><td><code>10</code></td><td>Number of categories profiled per text column</td></tr>
+          <tr><td><code>max_cells</code></td><td><code>int</code></td><td><code>5&#160;000&#160;000</code></td><td>Warn when nrow &#215; ncol exceeds this threshold</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:3rem;margin-bottom:1rem;font-size:1.3rem">Query Builder Operators</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Column type</th><th>Available operators</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Numeric</td><td><code>=</code> <code>&#8800;</code> <code>&lt;</code> <code>&#8804;</code> <code>&gt;</code> <code>&#8805;</code> <code>is null</code> <code>not null</code></td></tr>
+          <tr><td>Text</td><td><code>=</code> <code>&#8800;</code> <code>contains</code> <code>!contains</code> <code>in</code> <code>!in</code> <code>is null</code> <code>not null</code></td></tr>
+          <tr><td>Logical</td><td><code>is true</code> <code>is false</code> <code>is null</code> <code>not null</code></td></tr>
+          <tr><td>Datetime</td><td><code>=</code> <code>&lt;</code> <code>&#8804;</code> <code>&gt;</code> <code>&#8805;</code> <code>is null</code> <code>not null</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     R COMPARISON
+═════════════════════════════════════════════════════════════ -->
+<section id="compare">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Python vs R Comparison</h2>
+      <p>viewdt is a faithful Python port of the R <a href="https://itsmdivakaran.github.io/viewR/">ViewR</a> package by the same author.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Feature</th><th>R <code>viewdt()</code></th><th>Python <code>viewdt()</code></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Data input</td><td><code>data.frame</code> / tibble</td><td><code>pd.DataFrame</code></td></tr>
+          <tr><td>Column profiling</td><td>In R, before render</td><td>In Python, before render</td></tr>
+          <tr><td>Spark charts</td><td>SVG, vanilla JS</td><td>SVG, vanilla JS</td></tr>
+          <tr><td>Code export</td><td>dplyr / base R / SQL</td><td>pandas / Python / SQL</td></tr>
+          <tr><td>Column labels</td><td><code>label</code> attribute (haven)</td><td><code>series.attrs["label"]</code></td></tr>
+          <tr><td>Standalone output</td><td>htmlwidget</td><td>ViewdtWidget &#8594; <code>.save()</code></td></tr>
+          <tr><td>Jupyter support</td><td>via htmlwidgets</td><td>via <code>_repr_html_()</code></td></tr>
+          <tr><td>JS dependencies</td><td>None</td><td>None</td></tr>
+          <tr><td>Python version</td><td>—</td><td>3.9+</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     CITATION
+═════════════════════════════════════════════════════════════ -->
+<section id="citation">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Citation</h2>
+      <p>If you use viewdt in academic work, please cite the original R package:</p>
+    </div>
+
+    <div class="cite-quote">
+      Divakaran M (2026). <em>ViewR: Interactive Data Viewer, Filter, and Editor.</em>
+      R package version 0.2.0.
+      &lt;<a href="https://itsmdivakaran.github.io/viewR/">https://itsmdivakaran.github.io/viewR/</a>&gt;
+    </div>
+
+    <div class="code-wrap">
+      <pre>@Manual{ViewR,
+  title  = {{ViewR}: Interactive Data Viewer, Filter, and Editor},
+  author = {Mahesh Divakaran},
+  year   = {2026},
+  note   = {R package version 0.2.0},
+  url    = {https://itsmdivakaran.github.io/viewR/},
+}</pre>
+      <button class="cp" onclick="cp(this,`@Manual{ViewR,\n  title  = {{ViewR}: Interactive Data Viewer, Filter, and Editor},\n  author = {Mahesh Divakaran},\n  year   = {2026},\n  note   = {R package version 0.2.0},\n  url    = {https://itsmdivakaran.github.io/viewR/},\n}`)">copy</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     AUTHOR
+═════════════════════════════════════════════════════════════ -->
+<section id="author">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Author</h2>
+    </div>
+    <div class="author-card">
+      <div class="author-name">Mahesh Divakaran</div>
+      <div class="author-role">Research Scholar, Amity University Uttar Pradesh</div>
+      <div class="author-links">
+        <a href="https://github.com/itsmdivakaran" class="author-link">&#9881; GitHub</a>
+        <a href="https://orcid.org/0000-0002-3488-0857" class="author-link">&#128300; ORCID</a>
+        <a href="mailto:imaheshdivakaran@gmail.com" class="author-link">&#9993; Email</a>
+        <a href="https://itsmdivakaran.github.io/viewR/" class="author-link">&#128230; R Package</a>
+        <a href="https://pypi.org/project/viewdt/" class="author-link">&#128230; PyPI</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+═════════════════════════════════════════════════════════════ -->
+<footer>
+  <p>
+    <strong>viewdt</strong> &nbsp;&#183;&nbsp;
+    <a href="https://github.com/itsmdivakaran/viewdt">GitHub</a> &nbsp;&#183;&nbsp;
+    <a href="https://pypi.org/project/viewdt/">PyPI</a> &nbsp;&#183;&nbsp;
+    <a href="https://itsmdivakaran.github.io/viewR/">R ViewR</a> &nbsp;&#183;&nbsp;
+    MIT License &nbsp;&#183;&nbsp;
+    &copy; 2026 Mahesh Divakaran
+  </p>
+  <p>Python port of the <a href="https://itsmdivakaran.github.io/viewR/">ViewR</a> R package by the same author.</p>
+</footer>
+
+<script>
+  /* ── Theme ────────────────────────────────────────────────── */
+  const html = document.documentElement;
+  const btn  = document.getElementById('theme-btn');
+
+  function applyTheme(t) {
+    html.dataset.theme = t;
+    btn.textContent = t === 'dark' ? '☀️ Light' : '🌙 Dark';
+    localStorage.setItem('vdt-theme', t);
+  }
+
+  function toggleTheme() {
+    applyTheme(html.dataset.theme === 'dark' ? 'light' : 'dark');
+  }
+
+  // Initialise from saved pref or OS
+  const saved = localStorage.getItem('vdt-theme');
+  if (saved) {
+    applyTheme(saved);
+  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    applyTheme('dark');
+  }
+
+  /* ── Copy buttons ─────────────────────────────────────────── */
+  function copyInstall() {
+    navigator.clipboard.writeText('pip install viewdt');
+    const b = document.querySelector('#install-strip .cp');
+    b.textContent = '✓ copied';
+    setTimeout(() => b.textContent = 'copy', 2000);
+  }
+
+  function cp(el, text) {
+    navigator.clipboard.writeText(text.replace(/ /g, ' '));
+    el.textContent = '✓ copied';
+    setTimeout(() => el.textContent = 'copy', 2000);
+  }
+
+  /* ── Tabs ─────────────────────────────────────────────────── */
+  function tab(e, id) {
+    const section = e.target.closest('section') || document;
+    section.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    section.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById(id).classList.add('active');
+  }
+</script>
+</body>
+</html>

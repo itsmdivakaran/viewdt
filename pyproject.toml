@@ -60,8 +60,8 @@ dev = [
 
 # ── Project URLs ────────────────────────────────────────────────────────────
 [project.urls]
-Homepage      = "https://github.com/itsmdivakaran/viewdt"
-Documentation = "https://github.com/itsmdivakaran/viewdt#readme"
+Homepage      = "https://itsmdivakaran.github.io/viewdt/"
+Documentation = "https://itsmdivakaran.github.io/viewdt/"
 "Bug Tracker" = "https://github.com/itsmdivakaran/viewdt/issues"
 "Source Code" = "https://github.com/itsmdivakaran/viewdt"
 "R Original"  = "https://itsmdivakaran.github.io/viewR/"
